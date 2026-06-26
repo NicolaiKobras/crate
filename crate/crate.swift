@@ -32,8 +32,7 @@ struct ContainerStatusApp: App {
             VStack {
                 Text("\(vm.getRunningContainersAmount()) Containers running")
                 Button("Open Container View") {
-                    NSApp.activate(ignoringOtherApps: true)
-                    openWindow(id: "crate")
+                    openMainWindow()
                 }
                 Divider()
                 if vm.isSystemRunning {
@@ -58,16 +57,21 @@ struct ContainerStatusApp: App {
                 vm.stopPolling()
             }
         } label: {
-            (vm.isSystemRunning ? Image(systemName: "shippingbox") : Image(systemName: "stop"))
-                .frame(width: 22, height: 22)
+            let runningCount = vm.getRunningContainersAmount()
+            HStack(spacing: 3) {
+                Image(systemName: vm.isSystemRunning ? "shippingbox" : "stop")
+                if vm.isSystemRunning && runningCount > 0 {
+                    Text("\(runningCount)")
+                }
+            }
+            .frame(height: 22)
         }
 
         Window("Container", id: "crate") {
             ContentView()
                 .environmentObject(vm)
                 .onAppear {
-                    NSApp.setActivationPolicy(.regular)
-                    NSApp.activate(ignoringOtherApps: true)
+                    raiseMainWindow()
                 }
                 .onDisappear {
                     NSApp.setActivationPolicy(.accessory)
@@ -78,5 +82,30 @@ struct ContainerStatusApp: App {
             SettingsView()
                 .environmentObject(vm)
         }
+    }
+
+    /// Opens the main window from the menu bar and brings it to the front. The
+    /// app runs as an accessory (no Dock icon) so we must switch to `.regular`
+    /// and explicitly raise the window — otherwise it can open behind other apps.
+    private func openMainWindow() {
+        NSApp.setActivationPolicy(.regular)
+        openWindow(id: "crate")
+        // The window may not exist until the next runloop tick, so raise it then.
+        DispatchQueue.main.async {
+            raiseMainWindow()
+        }
+    }
+
+    /// Brings the container window to the front. `orderFrontRegardless()` raises
+    /// it even when the app isn't yet the active app, which a plain `activate()`
+    /// won't reliably do for an accessory app.
+    private func raiseMainWindow() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        let window = NSApp.windows.first { window in
+            window.identifier?.rawValue.contains("crate") ?? false || window.title == "Container"
+        } ?? NSApp.windows.first { $0.canBecomeMain }
+        window?.makeKeyAndOrderFront(nil)
+        window?.orderFrontRegardless()
     }
 }

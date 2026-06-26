@@ -106,6 +106,30 @@ struct ContentView: View {
             }
         }
         .navigationTitle("Container UI")
+        .safeAreaInset(edge: .bottom) {
+            statusBar
+        }
+    }
+
+    // MARK: - Status bar
+
+    private var statusBar: some View {
+        let runningCount = vm.getRunningContainersAmount()
+        return HStack(spacing: 6) {
+            Circle()
+                .fill(runningCount > 0 ? Color.green : Color.secondary)
+                .frame(width: 8, height: 8)
+            Text("\(runningCount) running")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.bar)
+        .overlay(alignment: .top) {
+            Divider()
+        }
     }
 
     // MARK: - Content list
